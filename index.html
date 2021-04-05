@@ -12,7 +12,7 @@
 </head>
 <body>
 
-<div class="row">
+<div class="row justify-content-center">
     <div class="col-4">
         <figure class="text-center">
             <blockquote class="blockquote">
@@ -47,12 +47,7 @@
             </div>
         </div>
         <div id="others" class="row mt-4 ms-4">
-            <div class="col-12">
-                <h3>Pliti</h3>
-            </div>
-            <div class="col-12">
-                <h3>Toune</h3>
-            </div>
+
         </div>
     </div>
 </div>
@@ -185,26 +180,25 @@
         }
         if (podium.gold.score > -1) {
             document.getElementById("gold-name").innerText = podium.gold.participants.join(", ") + " : " + podium.gold.score + " points";
-        } else {
-            document.getElementById("gold-row").style.display = "none";
-            ;
         }
 
         if (podium.silver.score > -1) {
             document.getElementById("silver-name").innerText = podium.silver.participants.join(", ") + " : " + podium.silver.score + " points";
-        } else {
-            document.getElementById("silver-row").style.display = "none";
-            ;
         }
-
         if (podium.bronze.score > -1) {
             document.getElementById("bronze-name").innerText = podium.bronze.participants.join(", ") + " : " + podium.bronze.score + " points";
-        } else {
-            document.getElementById("bronze-row").style.display = "none";
-            ;
         }
 
-        console.log(podium);
+        var minScorePodium = podium.bronze.score !== -1 ? podium.bronze.score : (podium.silver.score !== -1 ? podium.silver.score : (podium.gold.score !== -1 ? podium.gold.score : 0 ));
+
+        var htmlOther = "";
+        rankingParticipant.filter(rank => rank.score < minScorePodium).sort((rank1, rank2) => rank2.score - rank1.score).forEach(rank => {
+            htmlOther+= "<div className=\"col-12\">\n" +
+                "            <h3>"+ rank.name +" : " + rank.score + "</h3>\n" +
+                "        </div>"
+        });
+
+        document.getElementById("others").innerHTML = htmlOther;
     }
 
     function getRange(columnCount, rowCount) {
