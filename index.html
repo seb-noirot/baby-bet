@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Rankings</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6" crossorigin="anonymous">
+
+</head>
+<body>
+
+<div class="row">
+    <div class="col-4">
+        <figure class="text-center">
+            <blockquote class="blockquote">
+                <h1>Results</h1>
+            </blockquote>
+        </figure>
+        <div class="row">
+            <img src="/svg/podium-trophy.svg" class="rounded mx-auto d-block" style="width: 200px;" alt="Podium">
+        </div>
+        <div class="row" id="gold-row">
+            <div class="col-4">
+                <img src="/svg/gold-medal.svg" class="rounded" style="width: 100px;" alt="Gold">
+            </div>
+            <div class="col-8">
+                <h1 id="gold-name" class="pt-4"></h1>
+            </div>
+        </div>
+        <div class="row" id="silver-row">
+            <div class="col-4">
+                <img src="/svg/silver-medal.svg" class="rounded" style="width: 100px;" alt="Silver">
+            </div>
+            <div class="col-8">
+                <h1 id="silver-name" class="pt-4"></h1>
+            </div>
+        </div>
+        <div class="row" id="bronze-row">
+            <div class="col-4">
+                <img src="/svg/bronze-medal.svg" class="rounded" style="width: 100px;" alt="Bronze">
+            </div>
+            <div class="col-8">
+                <h1 id="bronze-name" class="pt-4"></h1>
+            </div>
+        </div>
+        <div id="others" class="row mt-4 ms-4">
+            <div class="col-12">
+                <h3>Pliti</h3>
+            </div>
+            <div class="col-12">
+                <h3>Toune</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script type="application/javascript">
+    var key = "";
+    var spreadSheetId = "";
+    var googleSheetUrl = "https://sheets.googleapis.com/v4/spreadsheets/";
+    var range = "";
+    var values = [];
+    var nameColumn = -1;
+    var scoreColumn = -1;
+    var ranking = [];
+    (function () {
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+        key = urlParams.get("key");
+        spreadSheetId = urlParams.get("spreadSheetId");
+        if (key && spreadSheetId) {
+            loadRanking();
+        }
+    })();
+
+    function loadRanking() {
+        loadSpreadSheetData();
+    }
+
+    function loadSpreadSheetData() {
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                // Typical action to be performed when the document is ready:
+                var spreedSheetData = JSON.parse(xhttp.responseText);
+                var sheet = spreedSheetData["sheets"][0];
+                var gridProperties = sheet["properties"]["gridProperties"];
+                var columnCount = gridProperties["columnCount"];
+                var rowCount = gridProperties["rowCount"];
+                range = getRange(columnCount, rowCount);
+                loadSpreadSheetValues();
+            }
+        };
+        var request = googleSheetUrl + spreadSheetId + "?key=" + key;
+        xhttp.open("GET", request, true);
+        xhttp.send();
+    }
+
+    function loadSpreadSheetValues() {
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                // Typical action to be performed when the document is ready:
+                var datas = JSON.parse(xhttp.responseText);
+                values = datas["values"];
+                var headers = values.shift();
+                extractColumn(headers);
+                extractRanking(values);
+            }
+        };
+        var request = googleSheetUrl + spreadSheetId + "/values/" + range + "?key=" + key;
+        xhttp.open("GET", request, true);
+        xhttp.send();
+    }
+
+
+    function extractColumn(headers) {
+        nameColumn = headers.indexOf("Participant");
+        scoreColumn = headers.indexOf("Score");
+
+        console.log("Name column : " + nameColumn + ", score column : " + scoreColumn);
+    }
+
+    function extractRanking(values) {
+        var rankingParticipant = [];
+        values.forEach(v => {
+            var name = v[nameColumn];
+            var scoreText = v[scoreColumn] || "0 / 0";
+            var score = scoreText.substring(0, scoreText.indexOf(" "));
+            rankingParticipant.push({"name": name, "score": parseInt(score)});
+        })
+
+        rankingParticipant.sort((v1, v2) => {
+            return v1.score > v2.score ? 1 : ((v1.score < v2.score) ? -1 : 0);
+        });
+        ranking = rankingParticipant;
+        var uniqueScores = ranking.map(rank => rank["score"]).filter((v, i, a) => a.indexOf(v) === i);
+        var topScores = uniqueScores.sort((a, b) => b - a);
+        var podium = {
+            gold: {
+                participants: [],
+                score: -1
+            },
+            silver: {
+                participants: [],
+                score: -1
+            },
+            bronze: {
+                participants: [],
+                score: -1
+            },
+            others: []
+        }
+        if (topScores.length > 0) {
+            var goldScore = topScores[0];
+            var goldParticipants = rankingParticipant.filter(rank => rank["score"] === goldScore).map(rank => rank["name"]);
+            podium.gold.score = goldScore;
+            podium.gold.participants = goldParticipants;
+            if (topScores.length > 1) {
+                if (podium.gold.participants.length === 1) {
+                    var silverScore = topScores[1];
+                    var silverParticipants = rankingParticipant.filter(rank => rank["score"] === silverScore).map(rank => rank["name"]);
+                    podium.silver.score = silverScore;
+                    podium.silver.participants = silverParticipants;
+                } else if (podium.gold.participants.length === 2) {
+                    var bronzeScore = topScores[1];
+                    var bronzeParticipants = rankingParticipant.filter(rank => rank["score"] === bronzeScore).map(rank => rank["name"]);
+                    podium.bronze.score = bronzeScore;
+                    podium.bronze.participants = bronzeParticipants;
+                }
+            }
+
+            if (topScores.length > 2) {
+                if (podium.gold.participants.length + podium.silver.participants.length + podium.bronze.participants.length < 3) {
+                    var bronzeScore = topScores[2];
+                    var bronzeParticipants = rankingParticipant.filter(rank => rank["score"] === bronzeScore).map(rank => rank["name"]);
+                    podium.bronze.score = bronzeScore;
+                    podium.bronze.participants = bronzeParticipants;
+                }
+            }
+        }
+        if (podium.gold.score > -1) {
+            document.getElementById("gold-name").innerText = podium.gold.participants.join(", ") + " : " + podium.gold.score + " points";
+        } else {
+            document.getElementById("gold-row").style.display = "none";
+            ;
+        }
+
+        if (podium.silver.score > -1) {
+            document.getElementById("silver-name").innerText = podium.silver.participants.join(", ") + " : " + podium.silver.score + " points";
+        } else {
+            document.getElementById("silver-row").style.display = "none";
+            ;
+        }
+
+        if (podium.bronze.score > -1) {
+            document.getElementById("bronze-name").innerText = podium.bronze.participants.join(", ") + " : " + podium.bronze.score + " points";
+        } else {
+            document.getElementById("bronze-row").style.display = "none";
+            ;
+        }
+
+        console.log(podium);
+    }
+
+    function getRange(columnCount, rowCount) {
+        var column = getColumn(columnCount);
+        var range = "A1:" + column + "" + rowCount;
+        console.log(range);
+        return range;
+
+    }
+
+    function getColumn(columnCount) {
+        return String.fromCharCode(columnCount + 'A'.charCodeAt(0));
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+        crossorigin="anonymous"></script>
+
+</body>
+</html>
